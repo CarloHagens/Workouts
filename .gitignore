@@ -1,0 +1,5 @@
+build/
+.claude/settings.local.json
+.gradle/
+.idea/
+fitness-api.exe

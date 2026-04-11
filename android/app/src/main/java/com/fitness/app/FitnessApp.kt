@@ -1,0 +1,58 @@
+package com.fitness.app
+
+import android.app.Application
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import com.fitness.app.data.ApiService
+import com.fitness.app.data.AppDatabase
+import com.fitness.app.data.FitnessRepository
+import com.fitness.app.ui.activeTheme
+import com.fitness.app.ui.themePresets
+
+class FitnessApp : Application() {
+    lateinit var repository: FitnessRepository
+    private lateinit var db: AppDatabase
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        db = AppDatabase.create(this)
+        val prefs = getSharedPreferences("fitness_prefs", MODE_PRIVATE)
+        // Restore saved theme
+        val savedTheme = prefs.getString("theme", null)
+        if (savedTheme != null) {
+            themePresets.find { it.name == savedTheme }?.let { activeTheme.value = it }
+        }
+        val serverUrl = prefs.getString("server_url", null) ?: ApiService.BASE_URL
+        initRepository(serverUrl)
+    }
+
+    private fun createNotificationChannel() {
+        val channel = NotificationChannel(
+            BreakTimerService.CHANNEL_ID,
+            "Rest Timer",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Countdown between sets"
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+            setSound(null, null) // Silent ticking; alarm plays separately at zero
+        }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+    }
+
+    fun initRepository(serverUrl: String) {
+        val url = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
+        val api = ApiService.create(url)
+        repository = FitnessRepository(api, db)
+        getSharedPreferences("fitness_prefs", MODE_PRIVATE)
+            .edit()
+            .putString("server_url", serverUrl)
+            .apply()
+    }
+
+    fun getServerUrl(): String {
+        return getSharedPreferences("fitness_prefs", MODE_PRIVATE)
+            .getString("server_url", ApiService.BASE_URL) ?: ApiService.BASE_URL
+    }
+}
