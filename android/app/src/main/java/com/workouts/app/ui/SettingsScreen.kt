@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -47,10 +47,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.fitness.app.data.ImportExercise
-import com.fitness.app.data.ImportWorkout
-import com.fitness.app.data.ImportWorkoutRequest
-import com.fitness.app.data.WorkoutSetInput
+import com.workouts.app.data.ImportExercise
+import com.workouts.app.data.ImportWorkout
+import com.workouts.app.data.ImportWorkoutRequest
+import com.workouts.app.data.WorkoutSetInput
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
@@ -59,7 +59,7 @@ import java.util.TimeZone
 
 @Composable
 fun SettingsScreen(
-    viewModel: FitnessViewModel
+    viewModel: WorkoutsViewModel
 ) {
     var serverUrl by remember { mutableStateOf(viewModel.serverUrl) }
     var saved by remember { mutableStateOf(false) }
@@ -146,7 +146,7 @@ fun SettingsScreen(
                     modifier = Modifier.clickable {
                         activeTheme.value = preset
                         // Persist
-                        context.getSharedPreferences("fitness_prefs", android.content.Context.MODE_PRIVATE)
+                        context.getSharedPreferences("workouts_prefs", android.content.Context.MODE_PRIVATE)
                             .edit().putString("theme", preset.name).apply()
                     }
                 ) {

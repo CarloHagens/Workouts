@@ -1,16 +1,16 @@
-package com.fitness.app
+package com.workouts.app
 
 import android.app.Application
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import com.fitness.app.data.ApiService
-import com.fitness.app.data.AppDatabase
-import com.fitness.app.data.FitnessRepository
-import com.fitness.app.ui.activeTheme
-import com.fitness.app.ui.themePresets
+import com.workouts.app.data.ApiService
+import com.workouts.app.data.AppDatabase
+import com.workouts.app.data.FitnessRepository
+import com.workouts.app.ui.activeTheme
+import com.workouts.app.ui.themePresets
 
-class FitnessApp : Application() {
+class WorkoutsApp : Application() {
     lateinit var repository: FitnessRepository
     private lateinit var db: AppDatabase
 
@@ -18,7 +18,7 @@ class FitnessApp : Application() {
         super.onCreate()
         createNotificationChannel()
         db = AppDatabase.create(this)
-        val prefs = getSharedPreferences("fitness_prefs", MODE_PRIVATE)
+        val prefs = getSharedPreferences("workouts_prefs", MODE_PRIVATE)
         // Restore saved theme
         val savedTheme = prefs.getString("theme", null)
         if (savedTheme != null) {
@@ -45,14 +45,14 @@ class FitnessApp : Application() {
         val url = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
         val api = ApiService.create(url)
         repository = FitnessRepository(api, db)
-        getSharedPreferences("fitness_prefs", MODE_PRIVATE)
+        getSharedPreferences("workouts_prefs", MODE_PRIVATE)
             .edit()
             .putString("server_url", serverUrl)
             .apply()
     }
 
     fun getServerUrl(): String {
-        return getSharedPreferences("fitness_prefs", MODE_PRIVATE)
+        return getSharedPreferences("workouts_prefs", MODE_PRIVATE)
             .getString("server_url", ApiService.BASE_URL) ?: ApiService.BASE_URL
     }
 }

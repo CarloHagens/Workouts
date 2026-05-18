@@ -1,4 +1,4 @@
-package com.fitness.app
+package com.workouts.app
 
 import android.app.Notification
 import android.app.NotificationManager
@@ -32,10 +32,10 @@ class BreakTimerService : Service() {
         var setWeight: Double = 0.0
         var setReps: Int = 0
 
-        const val ACTION_START = "com.fitness.app.BREAK_START"
-        const val ACTION_SKIP = "com.fitness.app.BREAK_SKIP"
-        const val ACTION_PASS = "com.fitness.app.SET_PASS"
-        const val ACTION_FAIL = "com.fitness.app.SET_FAIL"
+        const val ACTION_START = "com.workouts.app.BREAK_START"
+        const val ACTION_SKIP = "com.workouts.app.BREAK_SKIP"
+        const val ACTION_PASS = "com.workouts.app.SET_PASS"
+        const val ACTION_FAIL = "com.workouts.app.SET_FAIL"
         const val EXTRA_DURATION = "duration"
         const val EXTRA_EXERCISE = "exercise"
         const val EXTRA_NEXT_SET = "next_set"
@@ -87,7 +87,7 @@ class BreakTimerService : Service() {
 
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock?.let { if (it.isHeld) it.release() }
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "fitness:break_timer").apply {
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "workouts:break_timer").apply {
             acquire(10 * 60 * 1000L)
         }
 

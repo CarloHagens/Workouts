@@ -1,4 +1,4 @@
-module fitness-api
+module workouts-api
 
 go 1.22
 

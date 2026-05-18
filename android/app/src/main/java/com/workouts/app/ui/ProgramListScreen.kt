@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,11 +45,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.fitness.app.data.Program
+import com.workouts.app.data.Program
 
 @Composable
 fun ProgramListScreen(
-    viewModel: FitnessViewModel,
+    viewModel: WorkoutsViewModel,
     onProgramClick: (Program) -> Unit
 ) {
     val programs by viewModel.programs.collectAsState()

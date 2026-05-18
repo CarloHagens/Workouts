@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme

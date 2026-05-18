@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
@@ -62,14 +62,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.fitness.app.data.ActiveExerciseEntity
-import com.fitness.app.data.ActiveSetEntity
-import com.fitness.app.data.UpsertExerciseSettingsRequest
+import com.workouts.app.data.ActiveExerciseEntity
+import com.workouts.app.data.ActiveSetEntity
+import com.workouts.app.data.UpsertExerciseSettingsRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActiveWorkoutScreen(
-    viewModel: FitnessViewModel,
+    viewModel: WorkoutsViewModel,
     onFinished: () -> Unit
 ) {
     val workout by viewModel.activeWorkout.collectAsState()
@@ -322,7 +322,7 @@ fun ActiveWorkoutScreen(
 private fun WarmupTab(
     exercises: List<ActiveExerciseEntity>,
     completedWarmups: List<ActiveSetEntity>,
-    viewModel: FitnessViewModel,
+    viewModel: WorkoutsViewModel,
     onExerciseWarmupsComplete: () -> Unit
 ) {
     LazyColumn(
@@ -430,7 +430,7 @@ private fun WarmupTab(
 private fun WorkingTab(
     exercises: List<ActiveExerciseEntity>,
     sets: List<ActiveSetEntity>,
-    viewModel: FitnessViewModel,
+    viewModel: WorkoutsViewModel,
     onExerciseSettings: (ActiveExerciseEntity) -> Unit
 ) {
     LazyColumn(
@@ -592,7 +592,7 @@ private fun WorkingTab(
 private fun ExerciseSettingsDialog(
     exercise: ActiveExerciseEntity,
     programId: Long,
-    viewModel: FitnessViewModel,
+    viewModel: WorkoutsViewModel,
     onDismiss: () -> Unit
 ) {
     var weight by remember { mutableStateOf(if (exercise.workingWeight > 0) exercise.workingWeight.toString() else "") }
@@ -686,7 +686,7 @@ private fun ExerciseSettingsDialog(
 }
 
 @Composable
-private fun BreakDurationDialog(viewModel: FitnessViewModel, onDismiss: () -> Unit) {
+private fun BreakDurationDialog(viewModel: WorkoutsViewModel, onDismiss: () -> Unit) {
     val current by viewModel.breakDuration.collectAsState()
     val currentFail by viewModel.failBreakDuration.collectAsState()
     var value by remember { mutableStateOf(current.toString()) }

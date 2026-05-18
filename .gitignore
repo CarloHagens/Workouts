@@ -2,5 +2,5 @@ build/
 .claude/settings.local.json
 .gradle/
 .idea/
-fitness-api.exe
+workouts-api.exe
 local.properties

@@ -1,33 +1,33 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import android.app.Application
 import android.content.Context
 import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.fitness.app.BreakTimerService
-import com.fitness.app.FitnessApp
-import com.fitness.app.data.ActiveExerciseEntity
-import com.fitness.app.data.ActiveSetEntity
-import com.fitness.app.data.ActiveWorkoutEntity
-import com.fitness.app.data.Exercise
-import com.fitness.app.data.ExerciseSettings
-import com.fitness.app.data.FitnessRepository
-import com.fitness.app.data.Program
-import com.fitness.app.data.ProgramDetail
-import com.fitness.app.data.UpsertExerciseSettingsRequest
-import com.fitness.app.data.WarmupSet
-import com.fitness.app.data.WorkoutSummary
+import com.workouts.app.BreakTimerService
+import com.workouts.app.WorkoutsApp
+import com.workouts.app.data.ActiveExerciseEntity
+import com.workouts.app.data.ActiveSetEntity
+import com.workouts.app.data.ActiveWorkoutEntity
+import com.workouts.app.data.Exercise
+import com.workouts.app.data.ExerciseSettings
+import com.workouts.app.data.FitnessRepository
+import com.workouts.app.data.Program
+import com.workouts.app.data.ProgramDetail
+import com.workouts.app.data.UpsertExerciseSettingsRequest
+import com.workouts.app.data.WarmupSet
+import com.workouts.app.data.WorkoutSummary
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
-class FitnessViewModel(application: Application) : AndroidViewModel(application) {
-    private val app = application as FitnessApp
+class WorkoutsViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application as WorkoutsApp
     private val repo get() = app.repository
-    private val prefs = application.getSharedPreferences("fitness_prefs", Context.MODE_PRIVATE)
+    private val prefs = application.getSharedPreferences("workouts_prefs", Context.MODE_PRIVATE)
 
     // Programs
     private val _programs = MutableStateFlow<List<Program>>(emptyList())
@@ -277,14 +277,14 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             for (i in exercises.indices) {
                 val ex = exercises[i]
                 if (ex.workingWeight > 0 && ex.deloadPercent > 0) {
-                    val newWeight = com.fitness.app.data.FitnessRepository.roundToPlate(
+                    val newWeight = com.workouts.app.data.FitnessRepository.roundToPlate(
                         ex.workingWeight * (1 - ex.deloadPercent / 100)
                     )
                     exercises[i] = ex.copy(workingWeight = newWeight)
                     // Save to API
                     try {
                         repo.upsertExerciseSettings(programId, ex.exerciseId,
-                            com.fitness.app.data.UpsertExerciseSettingsRequest(
+                            com.workouts.app.data.UpsertExerciseSettingsRequest(
                                 working_weight = newWeight,
                                 target_reps = ex.targetReps,
                                 target_sets = ex.targetSets,
@@ -572,7 +572,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun importWorkouts(request: com.fitness.app.data.ImportWorkoutRequest, onDone: (Int) -> Unit) {
+    fun importWorkouts(request: com.workouts.app.data.ImportWorkoutRequest, onDone: (Int) -> Unit) {
         viewModelScope.launch {
             try {
                 val result = repo.importWorkouts(request)
@@ -599,7 +599,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun loadWorkoutDetail(id: Long, onLoaded: (com.fitness.app.data.WorkoutDetailResponse) -> Unit) {
+    fun loadWorkoutDetail(id: Long, onLoaded: (com.workouts.app.data.WorkoutDetailResponse) -> Unit) {
         viewModelScope.launch {
             try { onLoaded(repo.getWorkout(id)) }
             catch (e: Exception) { _error.value = "Failed to load workout: ${e.message}" }
@@ -610,9 +610,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     // --- Progress ---
 
-    suspend fun getExercisesWithHistorySync(): List<com.fitness.app.data.Exercise> = repo.getExercisesWithHistory()
-    suspend fun getBodyWeightProgressSync(): List<com.fitness.app.data.ProgressPoint> = repo.getBodyWeightProgress()
-    suspend fun getExerciseProgressSync(exerciseId: Long): List<com.fitness.app.data.ProgressPoint> = repo.getExerciseProgress(exerciseId)
+    suspend fun getExercisesWithHistorySync(): List<com.workouts.app.data.Exercise> = repo.getExercisesWithHistory()
+    suspend fun getBodyWeightProgressSync(): List<com.workouts.app.data.ProgressPoint> = repo.getBodyWeightProgress()
+    suspend fun getExerciseProgressSync(exerciseId: Long): List<com.workouts.app.data.ProgressPoint> = repo.getExerciseProgress(exerciseId)
 
     // --- Settings ---
 

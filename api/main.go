@@ -17,7 +17,7 @@ import (
 func main() {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://fitness:fitness@localhost:5432/fitness?sslmode=disable"
+		dbURL = "postgres://workouts:workouts@localhost:5432/workouts?sslmode=disable"
 	}
 	port := os.Getenv("PORT")
 	if port == "" {

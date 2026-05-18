@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -44,7 +44,7 @@ import androidx.compose.ui.unit.dp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExercisesScreen(
-    viewModel: FitnessViewModel,
+    viewModel: WorkoutsViewModel,
     programId: Long,
     onBack: () -> Unit
 ) {

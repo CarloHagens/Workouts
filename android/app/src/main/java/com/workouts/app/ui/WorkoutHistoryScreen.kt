@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -43,15 +43,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.fitness.app.data.WorkoutDetailResponse
-import com.fitness.app.data.WorkoutSummary
+import com.workouts.app.data.WorkoutDetailResponse
+import com.workouts.app.data.WorkoutSummary
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
 @Composable
 fun WorkoutHistoryScreen(
-    viewModel: FitnessViewModel
+    viewModel: WorkoutsViewModel
 ) {
     val workouts by viewModel.workoutHistory.collectAsState()
 

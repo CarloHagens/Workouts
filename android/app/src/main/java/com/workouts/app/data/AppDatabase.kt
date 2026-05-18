@@ -1,4 +1,4 @@
-package com.fitness.app.data
+package com.workouts.app.data
 
 import android.content.Context
 import androidx.room.Dao
@@ -78,7 +78,7 @@ abstract class AppDatabase : RoomDatabase() {
             return Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
-                "fitness.db"
+                "workouts.db"
             ).fallbackToDestructiveMigration(true).build()
         }
     }

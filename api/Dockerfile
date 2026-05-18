@@ -4,10 +4,10 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 go build -o /fitness-api .
+RUN CGO_ENABLED=0 go build -o /workouts-api .
 
 FROM alpine:3.19
 RUN apk add --no-cache ca-certificates tzdata
-COPY --from=builder /fitness-api /fitness-api
+COPY --from=builder /workouts-api /workouts-api
 EXPOSE 8080
-CMD ["/fitness-api"]
+CMD ["/workouts-api"]

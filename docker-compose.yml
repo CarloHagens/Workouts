@@ -1,10 +1,10 @@
 services:
   api:
-    image: jagger911/fitness-api:latest
+    image: jagger911/workouts-api:latest
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://fitness:fitness@db:5432/fitness?sslmode=disable
+      DATABASE_URL: postgres://workouts:workouts@db:5432/workouts?sslmode=disable
       PORT: "8080"
     depends_on:
       db:
@@ -14,15 +14,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: fitness
-      POSTGRES_PASSWORD: fitness
-      POSTGRES_DB: fitness
+      POSTGRES_USER: workouts
+      POSTGRES_PASSWORD: workouts
+      POSTGRES_DB: workouts
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fitness"]
+      test: ["CMD-SHELL", "pg_isready -U workouts"]
       interval: 5s
       timeout: 5s
       retries: 5

@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,7 +59,7 @@ val bottomTabs = listOf(
 @Composable
 fun FitnessNavGraph(
     navController: NavHostController,
-    viewModel: FitnessViewModel
+    viewModel: WorkoutsViewModel
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -183,7 +183,7 @@ fun FitnessNavGraph(
 }
 
 @Composable
-fun NoActiveWorkoutScreen(viewModel: FitnessViewModel) {
+fun NoActiveWorkoutScreen(viewModel: WorkoutsViewModel) {
     val programs by viewModel.programs.collectAsState()
 
     LaunchedEffect(Unit) { viewModel.loadPrograms() }

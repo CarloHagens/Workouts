@@ -1,4 +1,4 @@
-package com.fitness.app
+package com.workouts.app
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -16,12 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.compose.rememberNavController
-import com.fitness.app.ui.FitnessNavGraph
-import com.fitness.app.ui.FitnessTheme
-import com.fitness.app.ui.FitnessViewModel
+import com.workouts.app.ui.FitnessNavGraph
+import com.workouts.app.ui.FitnessTheme
+import com.workouts.app.ui.WorkoutsViewModel
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: FitnessViewModel by viewModels()
+    private val viewModel: WorkoutsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.fitness.app"
+    namespace = "com.workouts.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.fitness.app"
+        applicationId = "com.workouts.app"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

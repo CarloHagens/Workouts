@@ -1,4 +1,4 @@
-package com.fitness.app.ui
+package com.workouts.app.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -41,14 +41,14 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.fitness.app.data.Exercise
-import com.fitness.app.data.ProgressPoint
+import com.workouts.app.data.Exercise
+import com.workouts.app.data.ProgressPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProgressScreen(viewModel: FitnessViewModel) {
+fun ProgressScreen(viewModel: WorkoutsViewModel) {
     var exercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
     var selectedExerciseId by remember { mutableStateOf<Long?>(null) }
     var showBodyWeight by remember { mutableStateOf(true) }

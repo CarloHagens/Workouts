@@ -34,7 +34,7 @@ Workouts/
 │   ├── Dockerfile
 │   └── migrations/       # SQL migration files
 ├── android/              # Kotlin Android app
-│   └── app/src/main/java/com/fitness/app/
+│   └── app/src/main/java/com/workouts/app/
 │       ├── data/         # Room DB, Retrofit API, Repository
 │       └── ui/           # Compose screens and ViewModel
 └── docker-compose.yml
