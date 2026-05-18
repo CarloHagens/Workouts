@@ -3,3 +3,4 @@ build/
 .gradle/
 .idea/
 fitness-api.exe
+local.properties
