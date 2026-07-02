@@ -19,7 +19,7 @@ A fitness tracking app with a Go REST API backend and a native Android client bu
 | Backend | Go 1.22, Chi v5, pgx/v5 |
 | Database | PostgreSQL 16 |
 | Android | Kotlin, Jetpack Compose, Room, Retrofit |
-| Infrastructure | Docker, Docker Compose |
+| Infrastructure | Docker, Docker Compose, Caddy (HTTPS), DuckDNS |
 
 ## Project Structure
 
@@ -46,11 +46,18 @@ Workouts/
 
 **Prerequisites:** Docker and Docker Compose
 
+For local development, start just the API and database:
+
 ```bash
-docker compose up
+docker compose up api db
 ```
 
-This starts the Go API on port `8080` and PostgreSQL on port `5432`. The database is initialized and seeded with a built-in exercise catalog automatically.
+This starts the Go API on port `9001` and PostgreSQL on port `5432`. The database is initialized and seeded with a built-in exercise catalog automatically.
+
+The full stack (`docker compose up`, requires a `.env` — see `.env.example`) adds two services for internet-facing deployment:
+
+- **caddy** — HTTPS reverse proxy with automatic Let's Encrypt certificates, listening on host ports `8081` (HTTP) and `8443` (HTTPS). The router must forward external `80 → 8081` and `443 → 8443`.
+- **duckdns** — keeps the DuckDNS subdomain pointed at the network's public IP.
 
 To run without Docker:
 
@@ -64,12 +71,26 @@ DATABASE_URL=postgres://user:password@localhost:5432/workouts go run .
 **Prerequisites:** Android Studio, Android SDK (API 26+)
 
 1. Open the `android/` directory in Android Studio.
-2. Go to **Settings** in the app and set the server URL to your API host (e.g. `http://10.0.2.2:8080` for the emulator).
+2. The server URL is compiled in as `ApiService.BASE_URL` — point it at your API host (e.g. `http://10.0.2.2:8080` for the emulator) when developing.
 3. Build and run on a device or emulator (API 26+).
+
+## Device Identity
+
+All data on the server is scoped to a user, identified by a device token. The Android app generates a random UUID on first launch, stores it in SharedPreferences, and sends it on every request in the `X-Device-Token` header. The API creates a user automatically the first time it sees a new token, so no sign-up is needed — each fresh install gets its own empty account. Requests without a token are rejected with `401`.
+
+The token is shown under **Settings → Device ID** in the app (tap to copy).
+
+To attach a device to an existing user (e.g. claiming data that predates user accounts, or moving to a new phone), insert its token manually:
+
+```sql
+INSERT INTO device_tokens (token, user_id) VALUES ('<device id from app settings>', <user id>);
+```
+
+Data created before migration `006_users` is assigned to a single legacy user (the first row in `users`).
 
 ## API Reference
 
-All endpoints are prefixed with `/api`.
+All endpoints are prefixed with `/api` and require the `X-Device-Token` header.
 
 | Method | Path | Description |
 |---|---|---|
@@ -93,6 +114,7 @@ All endpoints are prefixed with `/api`.
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL` | `postgres://...localhost...` | PostgreSQL connection string |
-| `PORT` | `8080` | API listen port |
+| `PORT` | `8080` | API listen port (compose sets `9001`) |
+| `DUCKDNS_TOKEN` | — | DuckDNS account token (compose `.env`, duckdns service only) |
 
-The Android app stores the server URL in SharedPreferences, configurable from the Settings screen.
+The Android app's server URL is a compile-time constant (`ApiService.BASE_URL`).
