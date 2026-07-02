@@ -8,3 +8,4 @@ local.properties
 android/keystore.properties
 android/keystore/
 .env
+CLAUDE.md
