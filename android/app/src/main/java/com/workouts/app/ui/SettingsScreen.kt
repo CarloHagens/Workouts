@@ -29,7 +29,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material3.Button
@@ -54,12 +53,8 @@ import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.workouts.app.data.ApiService
 import androidx.compose.ui.Modifier
-import android.content.ClipData
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import com.workouts.app.data.ImportExercise
@@ -106,56 +101,8 @@ fun SettingsScreen(
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
-        Icon(
-            Icons.Default.Cloud,
-            contentDescription = null,
-            modifier = Modifier.size(32.dp),
-            tint = MaterialTheme.colorScheme.secondary
-        )
-        Spacer(Modifier.height(8.dp))
-        Text("Device ID", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "Your workout data on the server is tied to this ID. Tap to copy.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(8.dp))
-        val clipboard = LocalClipboard.current
-        val scope = rememberCoroutineScope()
-        val deviceToken = remember {
-            (context.applicationContext as com.workouts.app.WorkoutsApp).getDeviceToken()
-        }
-        var copied by remember { mutableStateOf(false) }
-        Text(
-            deviceToken,
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-                .clickable {
-                    scope.launch {
-                        clipboard.setClipEntry(
-                            ClipEntry(ClipData.newPlainText("Device ID", deviceToken))
-                        )
-                        copied = true
-                    }
-                }
-                .padding(12.dp)
-        )
-        if (copied) {
-            Spacer(Modifier.height(4.dp))
-            Text("Copied", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-        }
-
-        Spacer(Modifier.height(32.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(Modifier.height(24.dp))
-
         // Google account section
+        val scope = rememberCoroutineScope()
         val googleLink by viewModel.googleLink.collectAsState()
         var googleMessage by remember { mutableStateOf<String?>(null) }
         LaunchedEffect(Unit) { viewModel.loadGoogleLink() }

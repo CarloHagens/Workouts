@@ -78,12 +78,10 @@ DATABASE_URL=postgres://user:password@localhost:5432/workouts go run .
 
 All data on the server is scoped to a user, identified by a device token. The Android app generates a random UUID on first launch, stores it in SharedPreferences, and sends it on every request in the `X-Device-Token` header. The API creates a user automatically the first time it sees a new token, so no sign-up is needed — each fresh install gets its own empty account. Requests without a token are rejected with `401`.
 
-The token is shown under **Settings → Device ID** in the app (tap to copy).
-
-To attach a device to an existing user (e.g. claiming data that predates user accounts, or moving to a new phone), insert its token manually:
+To attach a device to an existing user manually (instead of via Google account linking), find its auto-created token in the `device_tokens` table and re-point it:
 
 ```sql
-INSERT INTO device_tokens (token, user_id) VALUES ('<device id from app settings>', <user id>);
+UPDATE device_tokens SET user_id = <user id> WHERE token = '<token>';
 ```
 
 Data created before migration `006_users` is assigned to a single legacy user (the first row in `users`).
