@@ -6,6 +6,7 @@ services:
     environment:
       DATABASE_URL: postgres://workouts:workouts@db:5432/workouts?sslmode=disable
       PORT: "9001"
+      GOOGLE_CLIENT_ID: 434692397513-2j398f4aoqgaotv58avklv01jhuo1n08.apps.googleusercontent.com
     depends_on:
       db:
         condition: service_healthy

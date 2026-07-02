@@ -88,12 +88,17 @@ INSERT INTO device_tokens (token, user_id) VALUES ('<device id from app settings
 
 Data created before migration `006_users` is assigned to a single legacy user (the first row in `users`).
 
+### Google account linking (optional)
+
+A user can link a Google account from **Settings → Google Account**. The app obtains an ID token via Credential Manager and posts it to `/api/auth/google`; the API verifies it against `GOOGLE_CLIENT_ID` and stores the Google identity on the user. Linking the same Google account from a new device re-points that device's token at the existing user and merges any data — this is the device-loss recovery path. No account is required to use the app.
+
 ## API Reference
 
 All endpoints are prefixed with `/api` and require the `X-Device-Token` header.
 
 | Method | Path | Description |
 |---|---|---|
+| `GET/POST/DELETE` | `/api/auth/google` | Get, create, or remove the Google account link |
 | `GET` | `/api/exercises` | List exercise catalog |
 | `GET/POST` | `/api/programs` | List or create programs |
 | `GET/PUT/DELETE` | `/api/programs/{id}` | Get, rename, or delete a program |
@@ -116,5 +121,6 @@ All endpoints are prefixed with `/api` and require the `X-Device-Token` header.
 | `DATABASE_URL` | `postgres://...localhost...` | PostgreSQL connection string |
 | `PORT` | `8080` | API listen port (compose sets `9001`) |
 | `DUCKDNS_TOKEN` | — | DuckDNS account token (compose `.env`, duckdns service only) |
+| `GOOGLE_CLIENT_ID` | — | OAuth web client ID for Google account linking; linking is disabled when unset |
 
 The Android app's server URL is a compile-time constant (`ApiService.BASE_URL`).
