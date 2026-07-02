@@ -24,8 +24,9 @@ class WorkoutsApp : Application() {
         if (savedTheme != null) {
             themePresets.find { it.name == savedTheme }?.let { activeTheme.value = it }
         }
-        val serverUrl = prefs.getString("server_url", null) ?: ApiService.BASE_URL
-        initRepository(serverUrl)
+        // Drop the server-URL override left behind by older app versions
+        prefs.edit().remove("server_url").apply()
+        repository = FitnessRepository(ApiService.create(deviceToken = getDeviceToken()), db)
     }
 
     private fun createNotificationChannel() {
@@ -41,18 +42,12 @@ class WorkoutsApp : Application() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    fun initRepository(serverUrl: String) {
-        val url = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
-        val api = ApiService.create(url)
-        repository = FitnessRepository(api, db)
-        getSharedPreferences("workouts_prefs", MODE_PRIVATE)
-            .edit()
-            .putString("server_url", serverUrl)
-            .apply()
-    }
-
-    fun getServerUrl(): String {
-        return getSharedPreferences("workouts_prefs", MODE_PRIVATE)
-            .getString("server_url", ApiService.BASE_URL) ?: ApiService.BASE_URL
+    /** Random ID generated on first launch; identifies this device's data on the server. */
+    fun getDeviceToken(): String {
+        val prefs = getSharedPreferences("workouts_prefs", MODE_PRIVATE)
+        prefs.getString("device_token", null)?.let { return it }
+        val token = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString("device_token", token).apply()
+        return token
     }
 }

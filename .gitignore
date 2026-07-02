@@ -3,4 +3,8 @@ build/
 .gradle/
 .idea/
 workouts-api.exe
+api/workouts-api
 local.properties
+android/keystore.properties
+android/keystore/
+.env

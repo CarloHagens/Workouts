@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.FileUpload
@@ -45,8 +44,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import android.content.ClipData
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.workouts.app.data.ImportExercise
 import com.workouts.app.data.ImportWorkout
 import com.workouts.app.data.ImportWorkoutRequest
@@ -61,8 +66,6 @@ import java.util.TimeZone
 fun SettingsScreen(
     viewModel: WorkoutsViewModel
 ) {
-    var serverUrl by remember { mutableStateOf(viewModel.serverUrl) }
-    var saved by remember { mutableStateOf(false) }
     var importStatus by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
 
@@ -100,28 +103,42 @@ fun SettingsScreen(
             tint = MaterialTheme.colorScheme.secondary
         )
         Spacer(Modifier.height(8.dp))
-        Text("Server Connection", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-        Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
-            value = serverUrl,
-            onValueChange = { serverUrl = it; saved = false },
-            label = { Text("Server URL") },
-            placeholder = { Text("http://192.168.1.100:8080") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+        Text("Device ID", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Your workout data on the server is tied to this ID. Tap to copy.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(16.dp))
-        Button(
-            onClick = {
-                viewModel.updateServerUrl(serverUrl.trim())
-                saved = true
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (saved) {
-                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp).padding(end = 4.dp))
-            }
-            Text(if (saved) "Saved" else "Save")
+        Spacer(Modifier.height(8.dp))
+        val clipboard = LocalClipboard.current
+        val scope = rememberCoroutineScope()
+        val deviceToken = remember {
+            (context.applicationContext as com.workouts.app.WorkoutsApp).getDeviceToken()
+        }
+        var copied by remember { mutableStateOf(false) }
+        Text(
+            deviceToken,
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                .clickable {
+                    scope.launch {
+                        clipboard.setClipEntry(
+                            ClipEntry(ClipData.newPlainText("Device ID", deviceToken))
+                        )
+                        copied = true
+                    }
+                }
+                .padding(12.dp)
+        )
+        if (copied) {
+            Spacer(Modifier.height(4.dp))
+            Text("Copied", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
 
         Spacer(Modifier.height(32.dp))

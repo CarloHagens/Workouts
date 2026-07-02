@@ -87,8 +87,6 @@ class WorkoutsViewModel(application: Application) : AndroidViewModel(application
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    val serverUrl: String get() = app.getServerUrl()
-
     init {
         viewModelScope.launch {
             val existing = repo.getActiveWorkout()
@@ -613,10 +611,4 @@ class WorkoutsViewModel(application: Application) : AndroidViewModel(application
     suspend fun getExercisesWithHistorySync(): List<com.workouts.app.data.Exercise> = repo.getExercisesWithHistory()
     suspend fun getBodyWeightProgressSync(): List<com.workouts.app.data.ProgressPoint> = repo.getBodyWeightProgress()
     suspend fun getExerciseProgressSync(exerciseId: Long): List<com.workouts.app.data.ProgressPoint> = repo.getExerciseProgress(exerciseId)
-
-    // --- Settings ---
-
-    fun updateServerUrl(url: String) {
-        app.initRepository(url)
-    }
 }

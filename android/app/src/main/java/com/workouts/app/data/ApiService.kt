@@ -1,5 +1,6 @@
 package com.workouts.app.data
 
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
@@ -96,11 +97,23 @@ interface ApiService {
     suspend fun deleteWorkout(@Path("id") id: Long)
 
     companion object {
-        const val BASE_URL = "http://192.168.1.100:8080/"
+        const val BASE_URL = "https://workouts-app.duckdns.org/"
+        const val DEVICE_TOKEN_HEADER = "X-Device-Token"
 
-        fun create(baseUrl: String = BASE_URL): ApiService {
+        fun create(baseUrl: String = BASE_URL, deviceToken: String? = null): ApiService {
+            val clientBuilder = OkHttpClient.Builder()
+            if (deviceToken != null) {
+                clientBuilder.addInterceptor { chain ->
+                    chain.proceed(
+                        chain.request().newBuilder()
+                            .header(DEVICE_TOKEN_HEADER, deviceToken)
+                            .build()
+                    )
+                }
+            }
             return Retrofit.Builder()
                 .baseUrl(baseUrl)
+                .client(clientBuilder.build())
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService::class.java)
