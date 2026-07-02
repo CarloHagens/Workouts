@@ -78,8 +78,11 @@ func (s *Store) Migrate(ctx context.Context) error {
 
 func (s *Store) SeedExercises(ctx context.Context) error {
 	for _, e := range seedExercises {
+		// The seed list is authoritative for category/muscle group so
+		// recategorized exercises update in place, keeping their id and history.
 		_, err := s.db.ExecContext(ctx,
-			`INSERT INTO exercises (name, category, muscle_group) VALUES ($1, $2, $3) ON CONFLICT (name) DO NOTHING`,
+			`INSERT INTO exercises (name, category, muscle_group) VALUES ($1, $2, $3)
+			 ON CONFLICT (name) DO UPDATE SET category = EXCLUDED.category, muscle_group = EXCLUDED.muscle_group`,
 			e.Name, e.Category, e.MuscleGroup)
 		if err != nil {
 			return fmt.Errorf("seeding %s: %w", e.Name, err)
