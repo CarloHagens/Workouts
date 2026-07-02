@@ -2,10 +2,10 @@ services:
   api:
     image: jagger911/workouts-api:latest
     ports:
-      - "8080:8080"
+      - "9001:9001" # LAN-only convenience (psql/testing); external traffic goes through caddy
     environment:
       DATABASE_URL: postgres://workouts:workouts@db:5432/workouts?sslmode=disable
-      PORT: "8080"
+      PORT: "9001"
     depends_on:
       db:
         condition: service_healthy
@@ -19,8 +19,6 @@ services:
       POSTGRES_DB: workouts
     volumes:
       - pgdata:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U workouts"]
       interval: 5s
@@ -28,5 +26,31 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # HTTPS reverse proxy. Router must forward external 80 -> 8081 and 443 -> 8443.
+  # Let's Encrypt certificates are obtained and renewed automatically (stored in caddy_data).
+  caddy:
+    image: caddy:2
+    command: caddy reverse-proxy --from workouts-app.duckdns.org --to api:9001
+    ports:
+      - "8081:80"
+      - "8443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Keeps workouts-app.duckdns.org pointed at this network's public IP.
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    environment:
+      SUBDOMAINS: workouts-app
+      TOKEN: ${DUCKDNS_TOKEN}
+      TZ: ${TZ:-Etc/UTC}
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:
