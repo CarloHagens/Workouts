@@ -146,13 +146,6 @@ fun ProgramDetailScreen(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                        if (pe.settings != null) {
-                                            Text(
-                                                "${pe.settings.working_weight}kg \u00d7 ${pe.settings.target_reps} \u00d7 ${pe.settings.target_sets}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.secondary
-                                            )
-                                        }
                                     }
                                 }
                                 IconButton(onClick = {
