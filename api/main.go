@@ -67,6 +67,8 @@ func main() {
 	}))
 
 	r.Route("/api", func(r chi.Router) {
+		r.Use(h.requireUser)
+
 		r.Get("/exercises", h.ListExercises)
 
 		r.Get("/programs", h.ListPrograms)

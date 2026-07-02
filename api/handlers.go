@@ -39,7 +39,7 @@ func (h *Handler) ListExercises(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListPrograms(w http.ResponseWriter, r *http.Request) {
-	programs, err := h.store.ListPrograms(r.Context())
+	programs, err := h.store.ListPrograms(r.Context(), userID(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -61,7 +61,7 @@ func (h *Handler) CreateProgram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	program, err := h.store.CreateProgram(r.Context(), req.Name)
+	program, err := h.store.CreateProgram(r.Context(), userID(r), req.Name)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -75,7 +75,7 @@ func (h *Handler) ReorderPrograms(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.store.ReorderPrograms(r.Context(), req.IDs); err != nil {
+	if err := h.store.ReorderPrograms(r.Context(), userID(r), req.IDs); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -89,7 +89,7 @@ func (h *Handler) GetProgram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	program, err := h.store.GetProgram(r.Context(), id)
+	program, err := h.store.GetProgram(r.Context(), userID(r), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			writeError(w, http.StatusNotFound, "program not found")
@@ -108,7 +108,7 @@ func (h *Handler) DeleteProgram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.DeleteProgram(r.Context(), id); err != nil {
+	if err := h.store.DeleteProgram(r.Context(), userID(r), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -132,8 +132,12 @@ func (h *Handler) RenameProgram(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	program, err := h.store.RenameProgram(r.Context(), id, req.Name)
+	program, err := h.store.RenameProgram(r.Context(), userID(r), id, req.Name)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "program not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -157,8 +161,12 @@ func (h *Handler) AddProgramExercise(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pe, err := h.store.AddProgramExercise(r.Context(), programID, req.ExerciseID, req.SortOrder)
+	pe, err := h.store.AddProgramExercise(r.Context(), userID(r), programID, req.ExerciseID, req.SortOrder)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "program not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -177,7 +185,7 @@ func (h *Handler) RemoveProgramExercise(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.store.RemoveProgramExercise(r.Context(), programID, exerciseID); err != nil {
+	if err := h.store.RemoveProgramExercise(r.Context(), userID(r), programID, exerciseID); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -198,7 +206,7 @@ func (h *Handler) GetExerciseSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	es, err := h.store.GetExerciseSettings(r.Context(), programID, exerciseID)
+	es, err := h.store.GetExerciseSettings(r.Context(), userID(r), programID, exerciseID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			writeError(w, http.StatusNotFound, "no settings configured")
@@ -228,8 +236,12 @@ func (h *Handler) UpsertExerciseSettings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	es, err := h.store.UpsertExerciseSettings(r.Context(), programID, exerciseID, req)
+	es, err := h.store.UpsertExerciseSettings(r.Context(), userID(r), programID, exerciseID, req)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "program not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -249,8 +261,12 @@ func (h *Handler) SubmitWorkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workout, err := h.store.SubmitWorkout(r.Context(), req)
+	workout, err := h.store.SubmitWorkout(r.Context(), userID(r), req)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "program not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -258,7 +274,7 @@ func (h *Handler) SubmitWorkout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) ListWorkouts(w http.ResponseWriter, r *http.Request) {
-	workouts, err := h.store.ListWorkouts(r.Context())
+	workouts, err := h.store.ListWorkouts(r.Context(), userID(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -276,7 +292,7 @@ func (h *Handler) GetWorkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	workout, err := h.store.GetWorkout(r.Context(), id)
+	workout, err := h.store.GetWorkout(r.Context(), userID(r), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			writeError(w, http.StatusNotFound, "workout not found")
@@ -289,7 +305,7 @@ func (h *Handler) GetWorkout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetExercisesWithHistory(w http.ResponseWriter, r *http.Request) {
-	exercises, err := h.store.GetExercisesWithHistory(r.Context())
+	exercises, err := h.store.GetExercisesWithHistory(r.Context(), userID(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -306,7 +322,7 @@ func (h *Handler) GetExerciseProgress(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid exercise id")
 		return
 	}
-	points, err := h.store.GetExerciseProgress(r.Context(), exerciseID)
+	points, err := h.store.GetExerciseProgress(r.Context(), userID(r), exerciseID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -318,7 +334,7 @@ func (h *Handler) GetExerciseProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetBodyWeightProgress(w http.ResponseWriter, r *http.Request) {
-	points, err := h.store.GetBodyWeightProgress(r.Context())
+	points, err := h.store.GetBodyWeightProgress(r.Context(), userID(r))
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -336,7 +352,7 @@ func (h *Handler) ImportWorkouts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	count, err := h.store.ImportWorkouts(r.Context(), req)
+	count, err := h.store.ImportWorkouts(r.Context(), userID(r), req)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -350,7 +366,7 @@ func (h *Handler) GetLastWorkoutDate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid id")
 		return
 	}
-	lastDate, err := h.store.GetLastWorkoutDate(r.Context(), programID)
+	lastDate, err := h.store.GetLastWorkoutDate(r.Context(), userID(r), programID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -369,7 +385,7 @@ func (h *Handler) UpdateWorkoutBodyWeight(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if err := h.store.UpdateWorkoutBodyWeight(r.Context(), id, req.BodyWeight); err != nil {
+	if err := h.store.UpdateWorkoutBodyWeight(r.Context(), userID(r), id, req.BodyWeight); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -377,7 +393,7 @@ func (h *Handler) UpdateWorkoutBodyWeight(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) DeleteAllWorkouts(w http.ResponseWriter, r *http.Request) {
-	if err := h.store.DeleteAllWorkouts(r.Context()); err != nil {
+	if err := h.store.DeleteAllWorkouts(r.Context(), userID(r)); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -391,7 +407,7 @@ func (h *Handler) DeleteWorkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.store.DeleteWorkout(r.Context(), id); err != nil {
+	if err := h.store.DeleteWorkout(r.Context(), userID(r), id); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

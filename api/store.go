@@ -24,6 +24,9 @@ var migration004 string
 //go:embed migrations/005_program_sort.sql
 var migration005 string
 
+//go:embed migrations/006_users.sql
+var migration006 string
+
 type migration struct {
 	name string
 	sql  string
@@ -35,6 +38,7 @@ var migrations = []migration{
 	{"003_body_weight", migration003},
 	{"004_deload_percent", migration004},
 	{"005_program_sort", migration005},
+	{"006_users", migration006},
 }
 
 type Store struct {
@@ -84,6 +88,50 @@ func (s *Store) SeedExercises(ctx context.Context) error {
 	return nil
 }
 
+// Users
+
+func (s *Store) GetOrCreateUserByToken(ctx context.Context, token string) (int64, error) {
+	var uid int64
+	err := s.db.QueryRowContext(ctx,
+		"UPDATE device_tokens SET last_seen = NOW() WHERE token = $1 RETURNING user_id", token).Scan(&uid)
+	if err == nil {
+		return uid, nil
+	}
+	if err != sql.ErrNoRows {
+		return 0, err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	if err := tx.QueryRowContext(ctx, "INSERT INTO users DEFAULT VALUES RETURNING id").Scan(&uid); err != nil {
+		return 0, err
+	}
+	if _, err := tx.ExecContext(ctx,
+		"INSERT INTO device_tokens (token, user_id, last_seen) VALUES ($1, $2, NOW())", token, uid); err != nil {
+		return 0, err
+	}
+	return uid, tx.Commit()
+}
+
+// ownsProgram returns sql.ErrNoRows if the program doesn't exist or belongs to another user.
+func ownsProgram(ctx context.Context, q interface {
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}, userID, programID int64) error {
+	var ok bool
+	err := q.QueryRowContext(ctx,
+		"SELECT EXISTS(SELECT 1 FROM programs WHERE id = $1 AND user_id = $2)", programID, userID).Scan(&ok)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
 func (s *Store) ListExercises(ctx context.Context, category, muscleGroup string) ([]Exercise, error) {
 	query := "SELECT id, name, category, muscle_group FROM exercises WHERE 1=1"
 	args := []any{}
@@ -117,44 +165,45 @@ func (s *Store) ListExercises(ctx context.Context, category, muscleGroup string)
 	return exercises, rows.Err()
 }
 
-func (s *Store) CreateProgram(ctx context.Context, name string) (*Program, error) {
+func (s *Store) CreateProgram(ctx context.Context, userID int64, name string) (*Program, error) {
 	var p Program
 	err := s.db.QueryRowContext(ctx,
-		"INSERT INTO programs (name) VALUES ($1) RETURNING id, name, sort_order, created_at",
-		name).Scan(&p.ID, &p.Name, &p.SortOrder, &p.CreatedAt)
+		"INSERT INTO programs (name, user_id) VALUES ($1, $2) RETURNING id, name, sort_order, created_at",
+		name, userID).Scan(&p.ID, &p.Name, &p.SortOrder, &p.CreatedAt)
 	p.ExerciseCount = 0
 	return &p, err
 }
 
-func (s *Store) RenameProgram(ctx context.Context, id int64, name string) (*Program, error) {
+func (s *Store) RenameProgram(ctx context.Context, userID, id int64, name string) (*Program, error) {
 	var p Program
 	err := s.db.QueryRowContext(ctx,
-		"UPDATE programs SET name = $1 WHERE id = $2 RETURNING id, name, sort_order, created_at",
-		name, id).Scan(&p.ID, &p.Name, &p.SortOrder, &p.CreatedAt)
+		"UPDATE programs SET name = $1 WHERE id = $2 AND user_id = $3 RETURNING id, name, sort_order, created_at",
+		name, id, userID).Scan(&p.ID, &p.Name, &p.SortOrder, &p.CreatedAt)
 	// Count exercises
 	s.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM program_exercises WHERE program_id = $1", id).Scan(&p.ExerciseCount)
 	return &p, err
 }
 
-func (s *Store) ReorderPrograms(ctx context.Context, ids []int64) error {
+func (s *Store) ReorderPrograms(ctx context.Context, userID int64, ids []int64) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	for i, id := range ids {
-		if _, err := tx.ExecContext(ctx, "UPDATE programs SET sort_order = $1 WHERE id = $2", i, id); err != nil {
+		if _, err := tx.ExecContext(ctx, "UPDATE programs SET sort_order = $1 WHERE id = $2 AND user_id = $3", i, id, userID); err != nil {
 			return err
 		}
 	}
 	return tx.Commit()
 }
 
-func (s *Store) ListPrograms(ctx context.Context) ([]Program, error) {
+func (s *Store) ListPrograms(ctx context.Context, userID int64) ([]Program, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT p.id, p.name, p.sort_order, COUNT(pe.id), p.created_at
 		 FROM programs p LEFT JOIN program_exercises pe ON pe.program_id = p.id
-		 GROUP BY p.id ORDER BY p.sort_order, p.created_at DESC`)
+		 WHERE p.user_id = $1
+		 GROUP BY p.id ORDER BY p.sort_order, p.created_at DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -171,10 +220,10 @@ func (s *Store) ListPrograms(ctx context.Context) ([]Program, error) {
 	return programs, rows.Err()
 }
 
-func (s *Store) GetProgram(ctx context.Context, id int64) (*ProgramDetail, error) {
+func (s *Store) GetProgram(ctx context.Context, userID, id int64) (*ProgramDetail, error) {
 	var pd ProgramDetail
 	err := s.db.QueryRowContext(ctx,
-		"SELECT id, name, created_at FROM programs WHERE id = $1", id).
+		"SELECT id, name, created_at FROM programs WHERE id = $1 AND user_id = $2", id, userID).
 		Scan(&pd.ID, &pd.Name, &pd.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -235,12 +284,15 @@ func (s *Store) GetProgram(ctx context.Context, id int64) (*ProgramDetail, error
 	return &pd, nil
 }
 
-func (s *Store) DeleteProgram(ctx context.Context, id int64) error {
-	_, err := s.db.ExecContext(ctx, "DELETE FROM programs WHERE id = $1", id)
+func (s *Store) DeleteProgram(ctx context.Context, userID, id int64) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM programs WHERE id = $1 AND user_id = $2", id, userID)
 	return err
 }
 
-func (s *Store) AddProgramExercise(ctx context.Context, programID, exerciseID int64, sortOrder int) (*ProgramExercise, error) {
+func (s *Store) AddProgramExercise(ctx context.Context, userID, programID, exerciseID int64, sortOrder int) (*ProgramExercise, error) {
+	if err := ownsProgram(ctx, s.db, userID, programID); err != nil {
+		return nil, err
+	}
 	if sortOrder == 0 {
 		var maxOrder sql.NullInt64
 		s.db.QueryRowContext(ctx,
@@ -270,16 +322,20 @@ func (s *Store) AddProgramExercise(ctx context.Context, programID, exerciseID in
 	return &pe, nil
 }
 
-func (s *Store) RemoveProgramExercise(ctx context.Context, programID, exerciseID int64) error {
+func (s *Store) RemoveProgramExercise(ctx context.Context, userID, programID, exerciseID int64) error {
 	_, err := s.db.ExecContext(ctx,
-		"DELETE FROM program_exercises WHERE program_id = $1 AND exercise_id = $2",
-		programID, exerciseID)
+		`DELETE FROM program_exercises pe USING programs p
+		 WHERE p.id = pe.program_id AND pe.program_id = $1 AND pe.exercise_id = $2 AND p.user_id = $3`,
+		programID, exerciseID, userID)
 	return err
 }
 
 // Exercise settings
 
-func (s *Store) UpsertExerciseSettings(ctx context.Context, programID, exerciseID int64, req UpsertExerciseSettingsRequest) (*ExerciseSettings, error) {
+func (s *Store) UpsertExerciseSettings(ctx context.Context, userID, programID, exerciseID int64, req UpsertExerciseSettingsRequest) (*ExerciseSettings, error) {
+	if err := ownsProgram(ctx, s.db, userID, programID); err != nil {
+		return nil, err
+	}
 	var es ExerciseSettings
 	err := s.db.QueryRowContext(ctx,
 		`INSERT INTO exercise_settings (program_id, exercise_id, working_weight, target_reps, target_sets,
@@ -306,14 +362,16 @@ func (s *Store) UpsertExerciseSettings(ctx context.Context, programID, exerciseI
 	return &es, err
 }
 
-func (s *Store) GetExerciseSettings(ctx context.Context, programID, exerciseID int64) (*ExerciseSettings, error) {
+func (s *Store) GetExerciseSettings(ctx context.Context, userID, programID, exerciseID int64) (*ExerciseSettings, error) {
 	var es ExerciseSettings
 	err := s.db.QueryRowContext(ctx,
-		`SELECT id, program_id, exercise_id, working_weight, target_reps, target_sets,
-		        increment_amount, deload_percent, success_threshold, failure_threshold,
-		        consecutive_successes, consecutive_failures
-		 FROM exercise_settings WHERE program_id = $1 AND exercise_id = $2`,
-		programID, exerciseID).
+		`SELECT es.id, es.program_id, es.exercise_id, es.working_weight, es.target_reps, es.target_sets,
+		        es.increment_amount, es.deload_percent, es.success_threshold, es.failure_threshold,
+		        es.consecutive_successes, es.consecutive_failures
+		 FROM exercise_settings es
+		 JOIN programs p ON p.id = es.program_id
+		 WHERE es.program_id = $1 AND es.exercise_id = $2 AND p.user_id = $3`,
+		programID, exerciseID, userID).
 		Scan(&es.ID, &es.ProgramID, &es.ExerciseID, &es.WorkingWeight,
 			&es.TargetReps, &es.TargetSets, &es.IncrementAmount, &es.DeloadPercent,
 			&es.SuccessThreshold, &es.FailureThreshold,
@@ -326,18 +384,22 @@ func (s *Store) GetExerciseSettings(ctx context.Context, programID, exerciseID i
 
 // Workouts
 
-func (s *Store) SubmitWorkout(ctx context.Context, req SubmitWorkoutRequest) (*WorkoutDetail, error) {
+func (s *Store) SubmitWorkout(ctx context.Context, userID int64, req SubmitWorkoutRequest) (*WorkoutDetail, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
 
+	if err := ownsProgram(ctx, tx, userID, req.ProgramID); err != nil {
+		return nil, err
+	}
+
 	var wd WorkoutDetail
 	err = tx.QueryRowContext(ctx,
-		`INSERT INTO workouts (program_id, started_at, finished_at, duration_seconds, body_weight)
-		 VALUES ($1, $2, $3, $4, $5) RETURNING id, program_id, started_at, finished_at, duration_seconds, body_weight, created_at`,
-		req.ProgramID, req.StartedAt, req.FinishedAt, req.DurationSeconds, req.BodyWeight).
+		`INSERT INTO workouts (program_id, user_id, started_at, finished_at, duration_seconds, body_weight)
+		 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, program_id, started_at, finished_at, duration_seconds, body_weight, created_at`,
+		req.ProgramID, userID, req.StartedAt, req.FinishedAt, req.DurationSeconds, req.BodyWeight).
 		Scan(&wd.ID, &wd.ProgramID, &wd.StartedAt, &wd.FinishedAt, &wd.DurationSeconds, &wd.BodyWeight, &wd.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("inserting workout: %w", err)
@@ -430,24 +492,26 @@ func (s *Store) SubmitWorkout(ctx context.Context, req SubmitWorkoutRequest) (*W
 			 WHERE program_id = $4 AND exercise_id = $5`,
 			newSuccesses, newFailures, newWeight, req.ProgramID, exerciseID)
 
-		// Sync weight change to same exercise in all other programs
+		// Sync weight change to same exercise in the user's other programs
 		if newWeight != es.WorkingWeight {
 			tx.ExecContext(ctx,
 				`UPDATE exercise_settings SET working_weight = $1, updated_at = NOW()
-				 WHERE exercise_id = $2 AND program_id != $3`,
-				newWeight, exerciseID, req.ProgramID)
+				 WHERE exercise_id = $2 AND program_id != $3
+				   AND program_id IN (SELECT id FROM programs WHERE user_id = $4)`,
+				newWeight, exerciseID, req.ProgramID, userID)
 		}
 	}
 
 	return &wd, tx.Commit()
 }
 
-func (s *Store) ListWorkouts(ctx context.Context) ([]Workout, error) {
+func (s *Store) ListWorkouts(ctx context.Context, userID int64) ([]Workout, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT w.id, w.program_id, p.name, w.started_at, w.finished_at, w.duration_seconds, w.body_weight, w.created_at
 		 FROM workouts w
 		 JOIN programs p ON p.id = w.program_id
-		 ORDER BY w.started_at DESC`)
+		 WHERE w.user_id = $1
+		 ORDER BY w.started_at DESC`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -464,13 +528,13 @@ func (s *Store) ListWorkouts(ctx context.Context) ([]Workout, error) {
 	return workouts, rows.Err()
 }
 
-func (s *Store) GetWorkout(ctx context.Context, id int64) (*WorkoutDetail, error) {
+func (s *Store) GetWorkout(ctx context.Context, userID, id int64) (*WorkoutDetail, error) {
 	var wd WorkoutDetail
 	err := s.db.QueryRowContext(ctx,
 		`SELECT w.id, w.program_id, p.name, w.started_at, w.finished_at, w.duration_seconds, w.body_weight, w.created_at
 		 FROM workouts w
 		 JOIN programs p ON p.id = w.program_id
-		 WHERE w.id = $1`, id).
+		 WHERE w.id = $1 AND w.user_id = $2`, id, userID).
 		Scan(&wd.ID, &wd.ProgramID, &wd.ProgramName, &wd.StartedAt, &wd.FinishedAt, &wd.DurationSeconds, &wd.BodyWeight, &wd.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -500,19 +564,19 @@ func (s *Store) GetWorkout(ctx context.Context, id int64) (*WorkoutDetail, error
 	return &wd, rows.Err()
 }
 
-func (s *Store) DeleteWorkout(ctx context.Context, id int64) error {
-	_, err := s.db.ExecContext(ctx, "DELETE FROM workouts WHERE id = $1", id)
+func (s *Store) DeleteWorkout(ctx context.Context, userID, id int64) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM workouts WHERE id = $1 AND user_id = $2", id, userID)
 	return err
 }
 
-func (s *Store) GetExerciseProgress(ctx context.Context, exerciseID int64) ([]ProgressPoint, error) {
+func (s *Store) GetExerciseProgress(ctx context.Context, userID, exerciseID int64) ([]ProgressPoint, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT w.started_at::date::text, MAX(ws.weight)
 		 FROM workout_sets ws
 		 JOIN workouts w ON w.id = ws.workout_id
-		 WHERE ws.exercise_id = $1
+		 WHERE ws.exercise_id = $1 AND w.user_id = $2
 		 GROUP BY w.started_at::date
-		 ORDER BY w.started_at::date`, exerciseID)
+		 ORDER BY w.started_at::date`, exerciseID, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -528,12 +592,14 @@ func (s *Store) GetExerciseProgress(ctx context.Context, exerciseID int64) ([]Pr
 	return points, rows.Err()
 }
 
-func (s *Store) GetExercisesWithHistory(ctx context.Context) ([]Exercise, error) {
+func (s *Store) GetExercisesWithHistory(ctx context.Context, userID int64) ([]Exercise, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT DISTINCT e.id, e.name, e.category, e.muscle_group
 		 FROM exercises e
 		 JOIN workout_sets ws ON ws.exercise_id = e.id
-		 ORDER BY e.name`)
+		 JOIN workouts w ON w.id = ws.workout_id
+		 WHERE w.user_id = $1
+		 ORDER BY e.name`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -549,12 +615,12 @@ func (s *Store) GetExercisesWithHistory(ctx context.Context) ([]Exercise, error)
 	return exercises, rows.Err()
 }
 
-func (s *Store) GetBodyWeightProgress(ctx context.Context) ([]ProgressPoint, error) {
+func (s *Store) GetBodyWeightProgress(ctx context.Context, userID int64) ([]ProgressPoint, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT started_at::date::text, body_weight
 		 FROM workouts
-		 WHERE body_weight IS NOT NULL
-		 ORDER BY started_at::date`)
+		 WHERE body_weight IS NOT NULL AND user_id = $1
+		 ORDER BY started_at::date`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -570,10 +636,10 @@ func (s *Store) GetBodyWeightProgress(ctx context.Context) ([]ProgressPoint, err
 	return points, rows.Err()
 }
 
-func (s *Store) GetLastWorkoutDate(ctx context.Context, programID int64) (*time.Time, error) {
+func (s *Store) GetLastWorkoutDate(ctx context.Context, userID, programID int64) (*time.Time, error) {
 	var lastDate time.Time
 	err := s.db.QueryRowContext(ctx,
-		"SELECT MAX(started_at) FROM workouts WHERE program_id = $1", programID).Scan(&lastDate)
+		"SELECT MAX(started_at) FROM workouts WHERE program_id = $1 AND user_id = $2", programID, userID).Scan(&lastDate)
 	if err != nil {
 		return nil, nil
 	}
@@ -583,17 +649,17 @@ func (s *Store) GetLastWorkoutDate(ctx context.Context, programID int64) (*time.
 	return &lastDate, nil
 }
 
-func (s *Store) UpdateWorkoutBodyWeight(ctx context.Context, id int64, bodyWeight float64) error {
-	_, err := s.db.ExecContext(ctx, "UPDATE workouts SET body_weight = $1 WHERE id = $2", bodyWeight, id)
+func (s *Store) UpdateWorkoutBodyWeight(ctx context.Context, userID, id int64, bodyWeight float64) error {
+	_, err := s.db.ExecContext(ctx, "UPDATE workouts SET body_weight = $1 WHERE id = $2 AND user_id = $3", bodyWeight, id, userID)
 	return err
 }
 
-func (s *Store) DeleteAllWorkouts(ctx context.Context) error {
-	_, err := s.db.ExecContext(ctx, "DELETE FROM workouts")
+func (s *Store) DeleteAllWorkouts(ctx context.Context, userID int64) error {
+	_, err := s.db.ExecContext(ctx, "DELETE FROM workouts WHERE user_id = $1", userID)
 	return err
 }
 
-func (s *Store) ImportWorkouts(ctx context.Context, req ImportWorkoutRequest) (int, error) {
+func (s *Store) ImportWorkouts(ctx context.Context, userID int64, req ImportWorkoutRequest) (int, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -605,18 +671,18 @@ func (s *Store) ImportWorkouts(ctx context.Context, req ImportWorkoutRequest) (i
 		// Find or create program
 		var programID int64
 		err := tx.QueryRowContext(ctx,
-			"SELECT id FROM programs WHERE name = $1", w.ProgramName).Scan(&programID)
+			"SELECT id FROM programs WHERE name = $1 AND user_id = $2", w.ProgramName, userID).Scan(&programID)
 		if err != nil {
 			tx.QueryRowContext(ctx,
-				"INSERT INTO programs (name) VALUES ($1) RETURNING id", w.ProgramName).Scan(&programID)
+				"INSERT INTO programs (name, user_id) VALUES ($1, $2) RETURNING id", w.ProgramName, userID).Scan(&programID)
 		}
 
 		// Insert workout
 		var workoutID int64
 		err = tx.QueryRowContext(ctx,
-			`INSERT INTO workouts (program_id, started_at, finished_at, duration_seconds, body_weight)
-			 VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-			programID, w.StartedAt, w.FinishedAt, w.DurationSeconds, w.BodyWeight).Scan(&workoutID)
+			`INSERT INTO workouts (program_id, user_id, started_at, finished_at, duration_seconds, body_weight)
+			 VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+			programID, userID, w.StartedAt, w.FinishedAt, w.DurationSeconds, w.BodyWeight).Scan(&workoutID)
 		if err != nil {
 			return 0, fmt.Errorf("inserting workout: %w", err)
 		}
