@@ -460,7 +460,7 @@ private fun WorkingTab(
                                     )
                                 }
                             }
-                            if (configured) {
+                            if (configured && exercise.category.equals("Barbell", ignoreCase = true)) {
                                 Box(modifier = Modifier.width(120.dp).offset(x = (-10).dp), contentAlignment = Alignment.CenterStart) {
                                     PlateDisplay(exercise.workingWeight)
                                 }
