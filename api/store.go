@@ -116,6 +116,70 @@ func (s *Store) GetOrCreateUserByToken(ctx context.Context, token string) (int64
 	return uid, tx.Commit()
 }
 
+func (s *Store) GetGoogleLink(ctx context.Context, userID int64) (sub, email string, err error) {
+	var subN, emailN sql.NullString
+	err = s.db.QueryRowContext(ctx,
+		"SELECT google_sub, google_email FROM users WHERE id = $1", userID).Scan(&subN, &emailN)
+	return subN.String, emailN.String, err
+}
+
+// LinkGoogle attaches a verified Google identity to the user. If the identity
+// is already linked to a different user, the current user's data and device
+// tokens are merged into that user instead (the new-device restore path);
+// restored reports whether that happened.
+func (s *Store) LinkGoogle(ctx context.Context, userID int64, sub, email string) (restored bool, err error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	var existing int64
+	err = tx.QueryRowContext(ctx, "SELECT id FROM users WHERE google_sub = $1", sub).Scan(&existing)
+	if err == sql.ErrNoRows {
+		if _, err := tx.ExecContext(ctx,
+			"UPDATE users SET google_sub = $1, google_email = $2 WHERE id = $3", sub, email, userID); err != nil {
+			return false, err
+		}
+		return false, tx.Commit()
+	}
+	if err != nil {
+		return false, err
+	}
+	if existing == userID {
+		if _, err := tx.ExecContext(ctx,
+			"UPDATE users SET google_email = $1 WHERE id = $2", email, userID); err != nil {
+			return false, err
+		}
+		return false, tx.Commit()
+	}
+
+	// Merge the current (typically fresh) user into the established one.
+	for _, q := range []string{
+		"UPDATE programs SET user_id = $1 WHERE user_id = $2",
+		"UPDATE workouts SET user_id = $1 WHERE user_id = $2",
+		"UPDATE device_tokens SET user_id = $1 WHERE user_id = $2",
+	} {
+		if _, err := tx.ExecContext(ctx, q, existing, userID); err != nil {
+			return false, err
+		}
+	}
+	if _, err := tx.ExecContext(ctx,
+		"UPDATE users SET google_email = $1 WHERE id = $2", email, existing); err != nil {
+		return false, err
+	}
+	if _, err := tx.ExecContext(ctx, "DELETE FROM users WHERE id = $1", userID); err != nil {
+		return false, err
+	}
+	return true, tx.Commit()
+}
+
+func (s *Store) UnlinkGoogle(ctx context.Context, userID int64) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE users SET google_sub = NULL, google_email = NULL WHERE id = $1", userID)
+	return err
+}
+
 // ownsProgram returns sql.ErrNoRows if the program doesn't exist or belongs to another user.
 func ownsProgram(ctx context.Context, q interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row

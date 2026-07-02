@@ -54,7 +54,10 @@ func main() {
 	}
 	log.Println("exercises seeded")
 
-	h := &Handler{store: store}
+	h := &Handler{store: store, googleClientID: os.Getenv("GOOGLE_CLIENT_ID")}
+	if h.googleClientID == "" {
+		log.Println("GOOGLE_CLIENT_ID not set; google account linking disabled")
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -68,6 +71,10 @@ func main() {
 
 	r.Route("/api", func(r chi.Router) {
 		r.Use(h.requireUser)
+
+		r.Get("/auth/google", h.GoogleStatus)
+		r.Post("/auth/google", h.LinkGoogle)
+		r.Delete("/auth/google", h.UnlinkGoogle)
 
 		r.Get("/exercises", h.ListExercises)
 

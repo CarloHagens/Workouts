@@ -10,7 +10,8 @@ import (
 )
 
 type Handler struct {
-	store *Store
+	store          *Store
+	googleClientID string
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
