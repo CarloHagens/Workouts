@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.FileUpload
@@ -39,10 +40,19 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.workouts.app.data.ApiService
 import androidx.compose.ui.Modifier
 import android.content.ClipData
 import androidx.compose.runtime.rememberCoroutineScope
@@ -139,6 +149,82 @@ fun SettingsScreen(
         if (copied) {
             Spacer(Modifier.height(4.dp))
             Text("Copied", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        }
+
+        Spacer(Modifier.height(32.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Spacer(Modifier.height(24.dp))
+
+        // Google account section
+        val googleLink by viewModel.googleLink.collectAsState()
+        var googleMessage by remember { mutableStateOf<String?>(null) }
+        LaunchedEffect(Unit) { viewModel.loadGoogleLink() }
+
+        Icon(
+            Icons.Default.AccountCircle,
+            contentDescription = null,
+            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.secondary
+        )
+        Spacer(Modifier.height(8.dp))
+        Text("Google Account", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            if (googleLink?.linked == true)
+                "Linked to ${googleLink?.email ?: "your Google account"}. Your data can be restored on a new device by linking the same account."
+            else
+                "Optional: link a Google account so your data can be restored if you lose or switch devices.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(12.dp))
+        if (googleLink?.linked == true) {
+            OutlinedButton(
+                onClick = {
+                    viewModel.unlinkGoogle { err ->
+                        googleMessage = if (err != null) "Error: $err" else "Unlinked"
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Unlink") }
+        } else {
+            Button(
+                onClick = {
+                    googleMessage = null
+                    scope.launch {
+                        try {
+                            val credentialManager = CredentialManager.create(context)
+                            val request = GetCredentialRequest.Builder()
+                                .addCredentialOption(
+                                    GetSignInWithGoogleOption.Builder(ApiService.GOOGLE_SERVER_CLIENT_ID).build()
+                                )
+                                .build()
+                            val credential = credentialManager.getCredential(context, request).credential
+                            if (credential is CustomCredential &&
+                                credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
+                            ) {
+                                val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
+                                viewModel.linkGoogle(idToken) { status, err ->
+                                    googleMessage = when {
+                                        err != null -> "Error: $err"
+                                        status?.restored == true -> "Account linked — existing data restored"
+                                        else -> "Account linked"
+                                    }
+                                }
+                            }
+                        } catch (_: GetCredentialCancellationException) {
+                            // user dismissed the account picker
+                        } catch (e: Exception) {
+                            googleMessage = "Error: ${e.message}"
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Link Google Account") }
+        }
+        if (googleMessage != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(googleMessage!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
 
         Spacer(Modifier.height(32.dp))

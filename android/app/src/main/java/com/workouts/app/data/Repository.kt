@@ -16,6 +16,11 @@ class FitnessRepository(
         timeZone = TimeZone.getTimeZone("UTC")
     }
 
+    // Google account link
+    suspend fun getGoogleLink(): GoogleLinkStatus = api.getGoogleLink()
+    suspend fun linkGoogle(idToken: String): GoogleLinkStatus = api.linkGoogle(LinkGoogleRequest(idToken))
+    suspend fun unlinkGoogle() = api.unlinkGoogle()
+
     // Exercises
     suspend fun getExercises(category: String? = null, muscleGroup: String? = null): List<Exercise> {
         return api.getExercises(category, muscleGroup)

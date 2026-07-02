@@ -13,6 +13,7 @@ import com.workouts.app.data.ActiveWorkoutEntity
 import com.workouts.app.data.Exercise
 import com.workouts.app.data.ExerciseSettings
 import com.workouts.app.data.FitnessRepository
+import com.workouts.app.data.GoogleLinkStatus
 import com.workouts.app.data.Program
 import com.workouts.app.data.ProgramDetail
 import com.workouts.app.data.UpsertExerciseSettingsRequest
@@ -86,6 +87,10 @@ class WorkoutsViewModel(application: Application) : AndroidViewModel(application
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
+
+    // Google account link
+    private val _googleLink = MutableStateFlow<GoogleLinkStatus?>(null)
+    val googleLink: StateFlow<GoogleLinkStatus?> = _googleLink
 
     init {
         viewModelScope.launch {
@@ -611,4 +616,41 @@ class WorkoutsViewModel(application: Application) : AndroidViewModel(application
     suspend fun getExercisesWithHistorySync(): List<com.workouts.app.data.Exercise> = repo.getExercisesWithHistory()
     suspend fun getBodyWeightProgressSync(): List<com.workouts.app.data.ProgressPoint> = repo.getBodyWeightProgress()
     suspend fun getExerciseProgressSync(exerciseId: Long): List<com.workouts.app.data.ProgressPoint> = repo.getExerciseProgress(exerciseId)
+
+    // --- Google account link ---
+
+    fun loadGoogleLink() {
+        viewModelScope.launch {
+            _googleLink.value = try { repo.getGoogleLink() } catch (e: Exception) { null }
+        }
+    }
+
+    fun linkGoogle(idToken: String, onResult: (GoogleLinkStatus?, String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val status = repo.linkGoogle(idToken)
+                _googleLink.value = status
+                if (status.restored == true) {
+                    // The device now points at a different user; reload everything
+                    loadPrograms()
+                    loadWorkoutHistory()
+                }
+                onResult(status, null)
+            } catch (e: Exception) {
+                onResult(null, e.message)
+            }
+        }
+    }
+
+    fun unlinkGoogle(onResult: (String?) -> Unit) {
+        viewModelScope.launch {
+            try {
+                repo.unlinkGoogle()
+                _googleLink.value = GoogleLinkStatus(linked = false, email = null, restored = null)
+                onResult(null)
+            } catch (e: Exception) {
+                onResult(e.message)
+            }
+        }
+    }
 }

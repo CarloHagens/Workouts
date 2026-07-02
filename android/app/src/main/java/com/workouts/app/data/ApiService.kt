@@ -14,6 +14,15 @@ import retrofit2.http.Query
 
 interface ApiService {
 
+    @GET("api/auth/google")
+    suspend fun getGoogleLink(): GoogleLinkStatus
+
+    @POST("api/auth/google")
+    suspend fun linkGoogle(@Body request: LinkGoogleRequest): GoogleLinkStatus
+
+    @DELETE("api/auth/google")
+    suspend fun unlinkGoogle()
+
     @GET("api/exercises")
     suspend fun getExercises(
         @Query("category") category: String? = null,
@@ -99,6 +108,10 @@ interface ApiService {
     companion object {
         const val BASE_URL = "https://workouts-app.duckdns.org/"
         const val DEVICE_TOKEN_HEADER = "X-Device-Token"
+
+        // OAuth "Web application" client ID; the audience Google issues ID tokens for.
+        const val GOOGLE_SERVER_CLIENT_ID =
+            "434692397513-2j398f4aoqgaotv58avklv01jhuo1n08.apps.googleusercontent.com"
 
         fun create(baseUrl: String = BASE_URL, deviceToken: String? = null): ApiService {
             val clientBuilder = OkHttpClient.Builder()

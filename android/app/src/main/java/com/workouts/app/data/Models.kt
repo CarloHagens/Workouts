@@ -84,6 +84,14 @@ data class ImportExercise(
 
 data class ImportResponse(val imported: Int)
 
+data class GoogleLinkStatus(
+    val linked: Boolean,
+    val email: String?,
+    val restored: Boolean?
+)
+
+data class LinkGoogleRequest(val id_token: String)
+
 data class UpsertExerciseSettingsRequest(
     val working_weight: Double,
     val target_reps: Int,
